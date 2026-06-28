@@ -1,0 +1,187 @@
+---
+title: "The Relationship Between ESG Risk, Volatility, and Earnings in S&P 500 Firms"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    number_sections: false
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load Libraries and Data
+```{r cars}
+library(tidyverse)
+library(ggplot2)
+library(ggthemes)
+library(fixest)
+```
+
+```{r}
+financials_df <- read_csv("financials.csv")
+esg_ratings_df <- read_csv("SP 500 ESG Risk Ratings.csv")
+```
+
+## Data Description
+My analysis uses two datasets covering firms in the S&P 500 index to study the relationship between Environmental, Social, and Governance (ESG) ratings and financial performance. One dataset contains firm-level financial and stock market data, while the second includes ESG risk and rating information for the same firms.
+
+Financial data are sourced directly from Kaggle, using the publicly available market data provider Yahoo Finance. These data are compiled from historical stock prices and firm disclosures, and are used to calculate stock returns and return volatility.
+
+The ESG data has been obtained from bloomberg. These ratings are constructed using information from company sustainability reports, regulatory filings, and media analysis, and are standardized to allow comparison across firms.
+
+The merged dataset includes firm identifiers (e.g., ticker symbols), financial variables (returns and volatility), ESG scores, and selected firm characteristics. Most variables are numeric, while identifiers are categorical.
+
+This combined dataset will allow for a test of whether firms with higher ESG ratings tend to have higher returns or lower volatility among large U.S. publicly traded companies.
+
+
+[Financial Data Link](https://www.kaggle.com/datasets/paytonfisher/sp-500-companies-with-financial-information/data)
+
+[ESG Score Risk Analysis Link](https://www.kaggle.com/datasets/dixitdatascientist/s-and-p-500-esg-risk-analysis)
+
+
+## Data Cleaning and Processing
+```{r}
+merged_df <- financials_df |>
+  inner_join(esg_ratings_df, c("Symbol" = "Symbol"))
+
+colnames(merged_df) <- colnames(merged_df) |>
+  tolower() |>
+  str_replace_all(" ", "_")
+
+merged_df <- merged_df |>
+  mutate(
+    symbol = as.factor(symbol),
+    name.x = as.factor(name.x),
+    sector.x = as.factor(sector.x),
+    industry = as.factor(industry),
+    total_esg_risk_score = as.numeric(total_esg_risk_score),
+    environment_risk_score = as.numeric(environment_risk_score),
+    social_risk_score = as.numeric(social_risk_score),
+    governance_risk_score = as.numeric(governance_risk_score)
+  )
+
+merged_df <- merged_df |>
+  drop_na(total_esg_risk_score, environment_risk_score, social_risk_score, governance_risk_score) |>
+  rename(fiftytwo_week_high = '52_week_low',
+         fiftytwo_week_low = '52_week_high',
+         earnings_per_share = 'earnings/share') |>
+  mutate(volatility = fiftytwo_week_high - fiftytwo_week_low)
+
+head(merged_df)
+  
+```
+
+Here, I merged the financial and ESG data by firm symbol, cleaned and standardized variable names, converted variables to appropriate data types, removed observations with missing ESG scores, renamed key financial variables, and created a volatility measure using the 52-week high–low price difference.
+
+The inner_join function ensures that only firms present in both datasets are included in the final merged dataset. The drop_na function removes any rows with missing values in the ESG score columns to ensure a complete case analysis. From the financials data frame, firms without a corresponding ESG rating are dropped from the merged dataset. Firms with ESG scores but no matching financial data are also excluded. The join is one-to-one, as each firm has a unique symbol in both datasets.
+
+## Data Analysis
+### Summary Statistics Table
+```{r}
+summary_stats <- merged_df |>
+    summarize(
+      across(
+        c(
+          total_esg_risk_score,
+          environment_risk_score,
+          social_risk_score,
+          governance_risk_score,
+          volatility,
+          earnings_per_share
+        ),
+        list(
+          Mean   = ~mean(.x, na.rm = TRUE),
+          Median = ~median(.x, na.rm = TRUE),
+          SD     = ~sd(.x, na.rm = TRUE),
+          Min    = ~min(.x, na.rm = TRUE),
+          Max    = ~max(.x, na.rm = TRUE)
+        ), .names = "{col}_{fn}" 
+      )
+    )
+
+head(summary_stats)
+
+#Note: I didn't use the etable function here because it cannot be used with the across function.
+```
+
+The summary statistics indicate that the average total ESG risk score among S&P 500 firms is approximately 21.7, with a standard deviation of 6.9, suggesting moderate variability in ESG risk profiles. The environmental risk scores have a mean of 5.8, social risk scores average around 9.1, and governance risk scores have a mean of 6.7, indicating that firms tend to have slightly higher social risks compared to environmental and governance risks. This table helps to show the distribution of the key variables and gives context to my regression results.
+
+### Graph of Total ESG Scores vs Volatility
+```{r}
+ggplot(merged_df, aes(x = total_esg_risk_score, y = volatility)) +
+  geom_point(alpha = 0.5, color = "blue") +
+  geom_smooth(method = "lm", color = "red") +
+  labs(title = "Total ESG Risk Score vs Volatility",
+       x = "total_esg_risk_score",
+       y = "volatility") +
+  theme_minimal()
+```
+
+### Graph of Environment Risk Scores vs Volatility
+```{r}
+ggplot(merged_df, aes(x = environment_risk_score, y = volatility)) +
+  geom_point(alpha = 0.5, color = "green") +
+  geom_smooth(method = "lm", color = "red") +
+  labs(title = "Environment Risk Score vs Volatility",
+       x = "environment_risk_score",
+       y = "volatility") +
+  theme_minimal()
+```
+
+### Graph of Social Risk Scores vs Volatility
+```{r}
+ggplot(merged_df, aes(x = social_risk_score, y = volatility)) +
+  geom_point(alpha = 0.5, color = "purple") +
+  geom_smooth(method = "lm", color = "red") +
+  labs(title = "Social Risk Score vs Volatility",
+       x = "social_risk_score",
+       y = "volatility") +
+  theme_minimal()
+```
+
+### Graph of Governance Risk Scores vs Volatility
+```{r}
+ggplot(merged_df, aes(x = governance_risk_score, y = volatility)) +
+  geom_point(alpha = 0.5, color = "orange") +
+  geom_smooth(method = "lm", color = "red") +
+  labs(title = "Governance Risk Score vs Volatility",
+       x = "governance_risk_score",
+       y = "volatility") +
+  theme_minimal()
+```
+
+### Regressions of Volatility on ESG Scores
+```{r}
+model_volatility_1 <- feols(volatility ~ environment_risk_score + social_risk_score + governance_risk_score, data = merged_df)
+summary(model_volatility_1)
+
+model_volatility_2 <- feols(volatility ~ total_esg_risk_score, data = merged_df)
+summary(model_volatility_2)
+
+etable(model_volatility_1, model_volatility_2)
+```
+
+The regression results indicate that none of the individual ESG risk scores (environmental, social, governance) have a statistically significant effect on stock return volatility at conventional significance levels. The coefficients for these variables are small and not significantly different from zero, suggesting that variations in these ESG risk dimensions do not meaningfully explain differences in volatility among S&P 500 firms. However, the overall model is statistically significant, indicating that ESG factors collectively contribute to explaining some variation in volatility.
+
+
+### Regressions of Earnings Per Share on ESG Scores
+```{r}
+model_eps_1 <- feols(earnings_per_share ~ environment_risk_score + social_risk_score + governance_risk_score, data = merged_df)
+summary(model_eps_1)
+
+model_eps_2 <- feols(earnings_per_share ~ total_esg_risk_score, data = merged_df)
+summary(model_eps_2)
+
+etable(model_eps_1, model_eps_2)
+```
+
+
+The regression results for earnings per share (EPS) also show that none of the individual ESG risk scores have a statistically significant effect on EPS at conventional significance levels. The coefficients are small and not significantly different from zero, indicating that ESG risk dimensions do not have a meaningful impact on earnings performance among S&P 500 firms. Similar to the volatility models, the overall model is statistically significant, suggesting that ESG factors together help explain some variation in EPS, but no single ESG measure stands out as a key driver.
+
+## Conclusion
+In summary, my analysis of S&P 500 firms found no statistically significant relationships between ESG risk scores and their stock return volatility or earnings per share. While the overall models were statistically significant, indicating that ESG factors jointly contribute to explaining variation in these financial outcomes, none of the individual ESG risk measures showed meaningful effects. This suggests that, within this sample of large U.S. firms, ESG risk ratings may not be strong predictors of short-term financial performance metrics like volatility or earnings. Some limitations of my analysis are that it uses a single year of data, which prevents observing how ESG risk impacts firm performance over time. Another may be the limited sample. The dataset only covers S&P 500 firms, which are large, established companies. The results may not generalize to smaller firms, emerging markets, or different industries.
+
+
