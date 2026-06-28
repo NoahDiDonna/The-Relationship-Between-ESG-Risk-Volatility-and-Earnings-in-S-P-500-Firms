@@ -1,0 +1,164 @@
+```{r cars}
+# Question 1
+
+# a. 
+which(LETTERS == "M")
+```
+
+
+```{r}
+# b.
+letters_vec <- LETTERS[c(2, 9, 14, 7, 15)]
+```
+
+```{r}
+# c.
+paste0("B", "I", "N", "G", "O")
+```
+
+```{r}
+# d.
+set.seed(123)
+draws <- sample(letters_vec, 50, replace = TRUE)
+
+length(draws)
+```
+
+```{r}
+# e.
+draw_freq <- table(draws)
+draw_freq
+```
+
+```{r}
+# f.
+typeof(draw_freq)
+```
+
+```{r}
+# g.
+x <- as.vector(draw_freq)
+```
+
+```{r}
+# h.
+is.vector(x)
+```
+```{r}
+# i.
+names(x) <- names(draw_freq)
+x
+```
+```{r}
+# j.
+x <- x[c("B", "I", "N", "G", "O")]
+x
+```
+```{r}
+# k.
+plot(x)
+```
+```{r}
+# l.
+sentence <- c("B was drawn", x[c(1)], "times.")
+print(sentence)
+```
+```{r}
+# m.
+cat("B was drawn", x[c(1)], "times")
+```
+```{r}
+# n.
+sum(x)
+```
+
+```{r}
+# o.
+sum(draws != "B")
+```
+```{r}
+# p.
+mean(x)
+```
+```{r}
+# q.
+names(x)[which.max(x)]
+```
+```{r}
+# r.
+draws[seq(3, length(draws), by = 3)]
+```
+```{r}
+# s.
+every_3draw <- draws[seq(draws) %% 3 == 0]
+every_3draw
+```
+```{r}
+# t.
+draws[draws != "B"]
+```
+```{r}
+# u.
+"B" %in% draws[draws != "B"]
+```
+```{r}
+# v.
+(x["B"] + x["I"]) > x["O"]
+```
+```{r}
+# w.
+draws[draws == "I" | draws == "O"]
+draws[draws %in% c("I", "O")]
+```
+```{r}
+# Question 2
+```
+
+```{r}
+# a.
+months12_list <- list(month.name)
+```
+
+```{r}
+# b.
+months12_aslist <- as.list(month.name)
+```
+
+```{r}
+# c.
+months12_list[[1]]      
+months12_aslist[[1]]    
+# They are not the same. months12_list is returning all 12 months, while months12_aslist is returning just January.
+```
+```{r}
+# d.
+name_of_months <- as.list(month.name)
+names(name_of_months) <- month.abb
+```
+
+```{r}
+# e.
+# method 1
+name_of_months[["Feb"]]   
+# method 2
+name_of_months$Feb      
+
+```
+```{r}
+# f.
+full_month_name <- function(abbr = "Jan") {
+  name_of_months <- as.list(month.name)
+  names(name_of_months) <- month.abb
+}
+```
+
+```{r}
+# g.
+full_month_name("Jan")
+```
+```{r}
+# h.
+full_month_name("dec")
+# "dec" has to be "Dec", since R interprets these two differently.
+```
+
